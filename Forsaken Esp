@@ -1,86 +1,65 @@
--- デフォルト設定はすべて OFF (false)
-_G.ShowNames = false
-_G.ShowBoxes = false
-_G.ShowTracers = false
-_G.ShowSkeletons = false
-_G.ShowKillerHighlight = false
-_G.ShowGearHighlight = false
-_G.ShowToolHighlight = false -- 追加: Tool用Highlight
-_G.FullBright = false
-
--- 各項目ごとのカラーデータ初期値
-_G.Colors = {
-    ShowNames = Color3.fromRGB(255, 255, 255),
-    ShowBoxes = Color3.fromRGB(255, 255, 255),
-    ShowTracers = Color3.fromRGB(255, 255, 255),
-    ShowSkeletons = Color3.fromRGB(255, 255, 255),
-    ShowKillerHighlight = Color3.fromRGB(255, 50, 50),
-    ShowGearHighlight = Color3.fromRGB(0, 255, 255),
-    ShowToolHighlight = Color3.fromRGB(255, 128, 0) -- オレンジ色（Tool用）
-}
-
--- 現在カラー編集対象になっている項目
-local currentConfigTarget = "ShowNames"
+-- ==========================================
+-- Forsaken Hub - LocalScript (Folder Shadows Fix)
+-- ==========================================
 
 local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
-local fileName = "ESP_Config_Advanced_Final_v8.json"
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
 
--- FullBright用元の環境データの保存用
-local originalLighting = {
-    Brightness = Lighting.Brightness,
-    ClockTime = Lighting.ClockTime,
-    FogEnd = Lighting.FogEnd,
-    GlobalShadows = Lighting.GlobalShadows,
-    OutdoorAmbient = Lighting.OutdoorAmbient
+local plr = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+-- 設定値
+_G.Settings = {
+    ShowNames = false,
+    ShowBoxes = false,
+    ShowKillerHighlight = false,
+    ShowKillerObjectHighlight = false,
+    ShowGearHighlight = false,
+    ShowToolHighlight = false,
+    FullBright = false
 }
 
--- セーブ機能
+_G.Colors = {
+    ShowNames = Color3.fromRGB(255, 255, 255),
+    ShowBoxes = Color3.fromRGB(255, 255, 255),
+    ShowKillerHighlight = Color3.fromRGB(255, 50, 50),
+    ShowKillerObjectHighlight = Color3.fromRGB(170, 0, 255),
+    ShowGearHighlight = Color3.fromRGB(0, 255, 255),
+    ShowToolHighlight = Color3.fromRGB(255, 128, 0)
+}
+
+local currentConfigTarget = "ShowNames"
+local fileName = "ForsakenHub_TrueColumns.json"
+
 local function saveConfig()
     local config = {
-        ShowNames = _G.ShowNames,
-        ShowBoxes = _G.ShowBoxes,
-        ShowTracers = _G.ShowTracers,
-        ShowSkeletons = _G.ShowSkeletons,
-        ShowKillerHighlight = _G.ShowKillerHighlight,
-        ShowGearHighlight = _G.ShowGearHighlight,
-        ShowToolHighlight = _G.ShowToolHighlight,
-        FullBright = _G.FullBright,
+        Settings = _G.Settings,
         Colors = {
             Names = {math.floor(_G.Colors.ShowNames.R*255), math.floor(_G.Colors.ShowNames.G*255), math.floor(_G.Colors.ShowNames.B*255)},
             Boxes = {math.floor(_G.Colors.ShowBoxes.R*255), math.floor(_G.Colors.ShowBoxes.G*255), math.floor(_G.Colors.ShowBoxes.B*255)},
-            Tracers = {math.floor(_G.Colors.ShowTracers.R*255), math.floor(_G.Colors.ShowTracers.G*255), math.floor(_G.Colors.ShowTracers.B*255)},
-            Skeletons = {math.floor(_G.Colors.ShowSkeletons.R*255), math.floor(_G.Colors.ShowSkeletons.G*255), math.floor(_G.Colors.ShowSkeletons.B*255)},
             KillerHighlight = {math.floor(_G.Colors.ShowKillerHighlight.R*255), math.floor(_G.Colors.ShowKillerHighlight.G*255), math.floor(_G.Colors.ShowKillerHighlight.B*255)},
+            KillerObjectHighlight = {math.floor(_G.Colors.ShowKillerObjectHighlight.R*255), math.floor(_G.Colors.ShowKillerObjectHighlight.G*255), math.floor(_G.Colors.ShowKillerObjectHighlight.B*255)},
             GearHighlight = {math.floor(_G.Colors.ShowGearHighlight.R*255), math.floor(_G.Colors.ShowGearHighlight.G*255), math.floor(_G.Colors.ShowGearHighlight.B*255)},
             ToolHighlight = {math.floor(_G.Colors.ShowToolHighlight.R*255), math.floor(_G.Colors.ShowToolHighlight.G*255), math.floor(_G.Colors.ShowToolHighlight.B*255)}
         }
     }
-    pcall(function()
-        writefile(fileName, HttpService:JSONEncode(config))
-    end)
+    pcall(function() writefile(fileName, HttpService:JSONEncode(config)) end)
 end
 
--- ロード機能
 local function loadConfig()
     pcall(function()
         if isfile(fileName) then
             local data = HttpService:JSONDecode(readfile(fileName))
-            if data.ShowNames ~= nil then _G.ShowNames = data.ShowNames end
-            if data.ShowBoxes ~= nil then _G.ShowBoxes = data.ShowBoxes end
-            if data.ShowTracers ~= nil then _G.ShowTracers = data.ShowTracers end
-            if data.ShowSkeletons ~= nil then _G.ShowSkeletons = data.ShowSkeletons end
-            if data.ShowKillerHighlight ~= nil then _G.ShowKillerHighlight = data.ShowKillerHighlight end
-            if data.ShowGearHighlight ~= nil then _G.ShowGearHighlight = data.ShowGearHighlight end
-            if data.ShowToolHighlight ~= nil then _G.ShowToolHighlight = data.ShowToolHighlight end
-            if data.FullBright ~= nil then _G.FullBright = data.FullBright end
-            
+            if data.Settings then
+                for k, v in pairs(data.Settings) do _G.Settings[k] = v end
+            end
             if data.Colors then
                 if data.Colors.Names then _G.Colors.ShowNames = Color3.fromRGB(unpack(data.Colors.Names)) end
                 if data.Colors.Boxes then _G.Colors.ShowBoxes = Color3.fromRGB(unpack(data.Colors.Boxes)) end
-                if data.Colors.Tracers then _G.Colors.ShowTracers = Color3.fromRGB(unpack(data.Colors.Tracers)) end
-                if data.Colors.Skeletons then _G.Colors.ShowSkeletons = Color3.fromRGB(unpack(data.Colors.Skeletons)) end
                 if data.Colors.KillerHighlight then _G.Colors.ShowKillerHighlight = Color3.fromRGB(unpack(data.Colors.KillerHighlight)) end
+                if data.Colors.KillerObjectHighlight then _G.Colors.ShowKillerObjectHighlight = Color3.fromRGB(unpack(data.Colors.KillerObjectHighlight)) end
                 if data.Colors.GearHighlight then _G.Colors.ShowGearHighlight = Color3.fromRGB(unpack(data.Colors.GearHighlight)) end
                 if data.Colors.ToolHighlight then _G.Colors.ShowToolHighlight = Color3.fromRGB(unpack(data.Colors.ToolHighlight)) end
             end
@@ -90,81 +69,87 @@ end
 
 loadConfig()
 
+local originalLighting = {
+    Brightness = Lighting.Brightness,
+    ClockTime = Lighting.ClockTime,
+    FogEnd = Lighting.FogEnd,
+    GlobalShadows = Lighting.GlobalShadows,
+    OutdoorAmbient = Lighting.OutdoorAmbient
+}
+
+-- GUI構築
 local Holder = Instance.new("Folder", game.CoreGui)
-Holder.Name = "ESP"
+Holder.Name = "Forsaken_ESP_Folder"
 
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
-ScreenGui.Name = "ESP_Menu_Gui"
+ScreenGui.Name = "Forsaken_Hub_Gui"
 ScreenGui.ResetOnSpawn = false
 
-local TweenService = game:GetService("TweenService")
-local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-
+-- トグルボタン
 local MenuToggle = Instance.new("TextButton", ScreenGui)
-MenuToggle.Size = UDim2.new(0, 130, 0, 35)
+MenuToggle.Size = UDim2.new(0, 150, 0, 36)
 MenuToggle.Position = UDim2.new(0, 20, 0, 20)
-MenuToggle.BackgroundColor3 = Color3.fromRGB(20, 20, 22)
-MenuToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-MenuToggle.Text = "[ ESP MENU ]"
-MenuToggle.Font = Enum.Font.RobotoMono
-MenuToggle.TextSize = 13
+MenuToggle.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
+MenuToggle.TextColor3 = Color3.fromRGB(255, 170, 50)
+MenuToggle.Text = "[ FORSAKEN HUB ]"
+MenuToggle.Font = Enum.Font.GothamBold
+MenuToggle.TextSize = 12
 MenuToggle.BorderSizePixel = 0
 
 local ToggleCorner = Instance.new("UICorner", MenuToggle)
 ToggleCorner.CornerRadius = UDim.new(0, 6)
 
-local ToggleStroke = Instance.new("UIStroke", MenuToggle)
-ToggleStroke.Color = Color3.fromRGB(255, 255, 255)
-ToggleStroke.Thickness = 1
-ToggleStroke.Transparency = 0.4
-
+-- メインパネル（幅 780px、高さ 280px）
 local MainPanel = Instance.new("Frame", ScreenGui)
-MainPanel.Size = UDim2.new(0, 230, 0, 475)
+MainPanel.Size = UDim2.new(0, 780, 0, 280)
 MainPanel.Position = UDim2.new(0, 20, 0, 65)
-MainPanel.BackgroundColor3 = Color3.fromRGB(15, 15, 17)
+MainPanel.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
 MainPanel.BorderSizePixel = 0
 MainPanel.Visible = false
 
 local PanelCorner = Instance.new("UICorner", MainPanel)
 PanelCorner.CornerRadius = UDim.new(0, 8)
-
 local PanelStroke = Instance.new("UIStroke", MainPanel)
-PanelStroke.Color = Color3.fromRGB(60, 60, 65)
-PanelStroke.Thickness = 1
+PanelStroke.Color = Color3.fromRGB(60, 60, 80)
+PanelStroke.Thickness = 1.5
 
-local UIListLayout = Instance.new("UIListLayout", MainPanel)
-UIListLayout.Padding = UDim.new(0, 6)
-UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+-- タイトルバー
+local TitleBar = Instance.new("TextLabel", MainPanel)
+TitleBar.Size = UDim2.new(1, 0, 0, 36)
+TitleBar.BackgroundColor3 = Color3.fromRGB(24, 24, 32)
+TitleBar.TextColor3 = Color3.fromRGB(255, 170, 50)
+TitleBar.Text = "  Forsaken Hub  |  by kurage7gou"
+TitleBar.Font = Enum.Font.GothamBold
+TitleBar.TextSize = 13
+TitleBar.TextXAlignment = Enum.TextXAlignment.Left
+TitleBar.BorderSizePixel = 0
 
-local UserInputService = game:GetService("UserInputService")
-local players = game:GetService("Players")
-local plr = players.LocalPlayer
-local camera = workspace.CurrentCamera
+local TitleCorner = Instance.new("UICorner", TitleBar)
+TitleCorner.CornerRadius = UDim.new(0, 8)
+local TitleFix = Instance.new("Frame", TitleBar)
+TitleFix.Size = UDim2.new(1, 0, 0, 8)
+TitleFix.Position = UDim2.new(0, 0, 1, -8)
+TitleFix.BackgroundColor3 = Color3.fromRGB(24, 24, 32)
+TitleFix.BorderSizePixel = 0
 
-local dragging, dragInput, dragStart, startPos
-
+-- ドラッグ機能
 local function makeDraggable(frame)
+    local dragging, dragInput, dragStart, startPos
     frame.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
             startPos = frame.Position
-            
             input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
             end)
         end
     end)
-
     frame.InputChanged:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
             dragInput = input
         end
     end)
-
     UserInputService.InputChanged:Connect(function(input)
         if input == dragInput and dragging then
             local delta = input.Position - dragStart
@@ -176,187 +161,203 @@ end
 makeDraggable(MainPanel)
 makeDraggable(MenuToggle)
 
-local function createRowComponent(text, globalVar, hasColor)
-    local RowFrame = Instance.new("Frame", MainPanel)
-    RowFrame.Size = UDim2.new(0, 205, 0, 34)
-    RowFrame.BackgroundTransparency = 1
+-- 4つの独立した列を配置するエリア
+local ContentArea = Instance.new("Frame", MainPanel)
+ContentArea.Size = UDim2.new(1, -16, 1, -48)
+ContentArea.Position = UDim2.new(0, 8, 0, 42)
+ContentArea.BackgroundTransparency = 1
+ContentArea.BorderSizePixel = 0
+
+local function createColumn(posX, width, titleText)
+    local col = Instance.new("Frame", ContentArea)
+    col.Size = UDim2.new(0, width, 1, 0)
+    col.Position = UDim2.new(0, posX, 0, 0)
+    col.BackgroundTransparency = 1
     
-    local btnWidth = hasColor and 160 or 205
-    local btn = Instance.new("TextButton", RowFrame)
-    btn.Size = UDim2.new(0, btnWidth, 0, 34)
-    btn.Position = UDim2.new(0, 0, 0, 0)
-    btn.Font = Enum.Font.RobotoMono
-    btn.TextSize = 11
+    local header = Instance.new("TextLabel", col)
+    header.Size = UDim2.new(1, 0, 0, 24)
+    header.Position = UDim2.new(0, 0, 0, 0)
+    header.BackgroundTransparency = 1
+    header.TextColor3 = Color3.fromRGB(180, 150, 255)
+    header.Text = titleText
+    header.Font = Enum.Font.GothamBold
+    header.TextSize = 12
+    header.TextXAlignment = Enum.TextXAlignment.Left
+    
+    return col
+end
+
+local col1 = createColumn(0,   175, "Players Esp")
+local col2 = createColumn(185, 175, "Killers Esp")
+local col3 = createColumn(370, 175, "Survivor Esp")
+local col4 = createColumn(555, 200, "World & Colors")
+
+local function createButton(parentCol, text, settingKey, posY, hasColor)
+    local btnWidth = hasColor and 130 or 175
+    local btn = Instance.new("TextButton", parentCol)
+    btn.Size = UDim2.new(0, btnWidth, 0, 28)
+    btn.Position = UDim2.new(0, 0, 0, posY)
+    btn.Font = Enum.Font.GothamMedium
+    btn.TextSize = 10
     btn.BorderSizePixel = 0
+    btn.TextXAlignment = Enum.TextXAlignment.Left
     
+    local padding = Instance.new("UIPadding", btn)
+    padding.PaddingLeft = UDim.new(0, 6)
+
     local btnCorner = Instance.new("UICorner", btn)
-    btnCorner.CornerRadius = UDim.new(0, 6)
-    
+    btnCorner.CornerRadius = UDim.new(0, 4)
     local btnStroke = Instance.new("UIStroke", btn)
     btnStroke.Thickness = 1
 
-    local ColorIndicator
-    local indStroke
-
+    local ColorIndicator, indStroke
     if hasColor then
-        ColorIndicator = Instance.new("TextButton", RowFrame)
-        ColorIndicator.Size = UDim2.new(0, 38, 0, 34)
-        ColorIndicator.Position = UDim2.new(0, 167, 0, 0)
-        ColorIndicator.Text = ""
+        ColorIndicator = Instance.new("TextButton", parentCol)
+        ColorIndicator.Size = UDim2.new(0, 40, 0, 28)
+        ColorIndicator.Position = UDim2.new(0, 135, 0, posY)
+        ColorIndicator.Text = "CLR"
+        ColorIndicator.Font = Enum.Font.GothamBold
+        ColorIndicator.TextSize = 9
+        ColorIndicator.TextColor3 = Color3.fromRGB(20, 20, 20)
         ColorIndicator.BorderSizePixel = 0
         
         local indCorner = Instance.new("UICorner", ColorIndicator)
-        indCorner.CornerRadius = UDim.new(0, 6)
-        
+        indCorner.CornerRadius = UDim.new(0, 4)
         indStroke = Instance.new("UIStroke", ColorIndicator)
-        indStroke.Thickness = 1.5
+        indStroke.Thickness = 1
     end
 
     local function updateDisplay()
-        if _G[globalVar] then
-            btn.BackgroundColor3 = Color3.fromRGB(240, 240, 245)
-            btn.TextColor3 = Color3.fromRGB(15, 15, 15)
-            btn.Text = text .. " : ON"
+        if _G.Settings[settingKey] then
+            btn.BackgroundColor3 = Color3.fromRGB(40, 80, 50)
+            btn.TextColor3 = Color3.fromRGB(120, 255, 150)
+            btn.Text = "[ON] " .. text
         else
-            btn.BackgroundColor3 = Color3.fromRGB(28, 28, 32)
-            btn.TextColor3 = Color3.fromRGB(130, 130, 135)
-            btn.Text = text .. " : OFF"
+            btn.BackgroundColor3 = Color3.fromRGB(26, 26, 34)
+            btn.TextColor3 = Color3.fromRGB(160, 160, 175)
+            btn.Text = "[OFF] " .. text
         end
 
         if hasColor then
-            if currentConfigTarget == globalVar then
-                btnStroke.Color = Color3.fromRGB(255, 255, 255)
+            if currentConfigTarget == settingKey then
+                btnStroke.Color = Color3.fromRGB(255, 170, 50)
                 btnStroke.Transparency = 0.1
-                indStroke.Color = Color3.fromRGB(255, 255, 255)
+                indStroke.Color = Color3.fromRGB(255, 170, 50)
                 indStroke.Transparency = 0.1
             else
-                btnStroke.Color = Color3.fromRGB(55, 55, 60)
+                btnStroke.Color = Color3.fromRGB(60, 60, 75)
                 btnStroke.Transparency = 0.6
-                indStroke.Color = Color3.fromRGB(40, 40, 45)
+                indStroke.Color = Color3.fromRGB(50, 50, 65)
                 indStroke.Transparency = 0.4
             end
-            ColorIndicator.BackgroundColor3 = _G.Colors[globalVar]
+            ColorIndicator.BackgroundColor3 = _G.Colors[settingKey]
         else
-            if currentConfigTarget == globalVar then
-                btnStroke.Color = Color3.fromRGB(255, 255, 255)
+            if currentConfigTarget == settingKey then
+                btnStroke.Color = Color3.fromRGB(255, 170, 50)
                 btnStroke.Transparency = 0.1
             else
-                btnStroke.Color = Color3.fromRGB(55, 55, 60)
+                btnStroke.Color = Color3.fromRGB(60, 60, 75)
                 btnStroke.Transparency = 0.6
             end
         end
     end
     
     btn.MouseButton1Click:Connect(function()
-        _G[globalVar] = not _G[globalVar]
-        currentConfigTarget = globalVar
+        _G.Settings[settingKey] = not _G.Settings[settingKey]
+        currentConfigTarget = settingKey
         updateDisplay()
         saveConfig()
     end)
 
     if hasColor then
         ColorIndicator.MouseButton1Click:Connect(function()
-            currentConfigTarget = globalVar
+            currentConfigTarget = settingKey
             updateDisplay()
         end)
     end
     
     task.spawn(function()
-        while task.wait(0.2) do
-            updateDisplay()
-        end
+        while task.wait(0.2) do updateDisplay() end
     end)
-
     updateDisplay()
 end
 
-createRowComponent("NAMES & INFO", "ShowNames", true)
-createRowComponent("2D BOXES", "ShowBoxes", true)
-createRowComponent("TRACERS", "ShowTracers", true)
-createRowComponent("SKELETONS", "ShowSkeletons", true)
-createRowComponent("KILLER HIGHLIGHT", "ShowKillerHighlight", true)
-createRowComponent("GEAR ESP", "ShowGearHighlight", true)
-createRowComponent("TOOL ESP", "ShowToolHighlight", true) -- 追加: Tool用トグル
-createRowComponent("FULLBRIGHT", "FullBright", false)
+-- 各列へのボタン配置
+createButton(col1, "Names", "ShowNames", 28, true)
+createButton(col1, "Boxes", "ShowBoxes", 60, true)
 
-local Divider = Instance.new("Frame", MainPanel)
-Divider.Size = UDim2.new(0, 195, 0, 1)
-Divider.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-Divider.BorderSizePixel = 0
+createButton(col2, "Killers HL", "ShowKillerHighlight", 28, true)
+createButton(col2, "Killers Obj", "ShowKillerObjectHighlight", 60, true)
 
-local function createColorSlider(colorChannel)
-    local btn = Instance.new("TextButton", MainPanel)
-    btn.Size = UDim2.new(0, 205, 0, 28)
-    btn.Font = Enum.Font.RobotoMono
-    btn.TextSize = 11
+createButton(col3, "Gear Esp", "ShowGearHighlight", 28, true)
+createButton(col3, "Tool Esp", "ShowToolHighlight", 60, true)
+
+createButton(col4, "FullBright", "FullBright", 28, false)
+
+local function createColorSlider(parentCol, colorChannel, posY)
+    local btn = Instance.new("TextButton", parentCol)
+    btn.Size = UDim2.new(1, 0, 0, 24)
+    btn.Position = UDim2.new(0, 0, 0, posY)
+    btn.Font = Enum.Font.GothamMedium
+    btn.TextSize = 10
     btn.BorderSizePixel = 0
-    btn.BackgroundColor3 = Color3.fromRGB(22, 22, 25)
+    btn.BackgroundColor3 = Color3.fromRGB(22, 22, 30)
+    btn.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local padding = Instance.new("UIPadding", btn)
+    padding.PaddingLeft = UDim.new(0, 6)
     
     local btnCorner = Instance.new("UICorner", btn)
-    btnCorner.CornerRadius = UDim.new(0, 6)
-    
+    btnCorner.CornerRadius = UDim.new(0, 4)
     local btnStroke = Instance.new("UIStroke", btn)
     btnStroke.Thickness = 1
-    btnStroke.Color = Color3.fromRGB(50, 50, 55)
+    btnStroke.Color = Color3.fromRGB(60, 60, 80)
     btnStroke.Transparency = 0.5
 
     local function updateColorDisplay()
         if not _G.Colors[currentConfigTarget] then return end
         local activeColor = _G.Colors[currentConfigTarget]
-        local r = math.floor(activeColor.R * 255)
-        local g = math.floor(activeColor.G * 255)
-        local b = math.floor(activeColor.B * 255)
+        local r, g, b = math.floor(activeColor.R * 255), math.floor(activeColor.G * 255), math.floor(activeColor.B * 255)
         
         if colorChannel == "R" then
-            btn.Text = "  [R] VALUE: " .. r
-            btn.TextColor3 = Color3.fromRGB(255, 90, 90)
+            btn.Text = "[R] VAL: " .. r
+            btn.TextColor3 = Color3.fromRGB(255, 100, 100)
         elseif colorChannel == "G" then
-            btn.Text = "  [G] VALUE: " .. g
-            btn.TextColor3 = Color3.fromRGB(90, 255, 90)
+            btn.Text = "[G] VAL: " .. g
+            btn.TextColor3 = Color3.fromRGB(100, 255, 100)
         elseif colorChannel == "B" then
-            btn.Text = "  [B] VALUE: " .. b
-            btn.TextColor3 = Color3.fromRGB(90, 90, 255)
+            btn.Text = "[B] VAL: " .. b
+            btn.TextColor3 = Color3.fromRGB(100, 100, 255)
         end
     end
 
     btn.MouseButton1Click:Connect(function()
         if not _G.Colors[currentConfigTarget] then return end
         local activeColor = _G.Colors[currentConfigTarget]
-        local r = math.floor(activeColor.R * 255)
-        local g = math.floor(activeColor.G * 255)
-        local b = math.floor(activeColor.B * 255)
-
+        local r, g, b = math.floor(activeColor.R * 255), math.floor(activeColor.G * 255), math.floor(activeColor.B * 255)
         if colorChannel == "R" then r = (r + 25) > 255 and 0 or (r + 25)
         elseif colorChannel == "G" then g = (g + 25) > 255 and 0 or (g + 25)
-        elseif colorChannel == "B" then b = (b + 25) > 255 and 0 or (b + 25)
-        end
-
+        elseif colorChannel == "B" then b = (b + 25) > 255 and 0 or (b + 25) end
         _G.Colors[currentConfigTarget] = Color3.fromRGB(r, g, b)
         updateColorDisplay()
         saveConfig()
     end)
 
-    task.spawn(function()
-        while task.wait(0.1) do
-            updateColorDisplay()
-        end
-    end)
+    task.spawn(function() while task.wait(0.1) do updateColorDisplay() end end)
     updateColorDisplay()
 end
 
-createColorSlider("R")
-createColorSlider("G")
-createColorSlider("B")
+createColorSlider(col4, "R", 60)
+createColorSlider(col4, "G", 92)
+createColorSlider(col4, "B", 124)
 
 MenuToggle.MouseButton1Click:Connect(function()
     MainPanel.Visible = not MainPanel.Visible
-    if MainPanel.Visible then
-        TweenService:Create(MenuToggle, tweenInfo, {BackgroundColor3 = Color3.fromRGB(35, 35, 40)}):Play()
-    else
-        TweenService:Create(MenuToggle, tweenInfo, {BackgroundColor3 = Color3.fromRGB(20, 20, 22)}):Play()
-    end
 end)
 
+-- ==========================================
+-- 機能ロジック（ESP・FullBright等）
+-- ==========================================
 local NameTag = Instance.new("BillboardGui")
 NameTag.Name = "nilNameTag"
 NameTag.Enabled = false
@@ -375,28 +376,12 @@ Tag.TextStrokeTransparency = 0.3
 Tag.Font = Enum.Font.RobotoMono
 
 local ESPCache = {}
-
 local function getESP(v)
     if not ESPCache[v.Name] then
-        ESPCache[v.Name] = {
-            Box = Drawing.new("Square"),
-            Tracer = Drawing.new("Line"),
-            Bones = {}
-        }
+        ESPCache[v.Name] = { Box = Drawing.new("Square") }
         ESPCache[v.Name].Box.Thickness = 1.5
         ESPCache[v.Name].Box.Filled = false
         ESPCache[v.Name].Box.Transparency = 0.85
-        
-        ESPCache[v.Name].Tracer.Thickness = 1
-        ESPCache[v.Name].Tracer.Transparency = 0.5
-
-        for i = 1, 15 do
-            local boneLine = Drawing.new("Line")
-            boneLine.Thickness = 1.5
-            boneLine.Transparency = 0.7
-            boneLine.Visible = false
-            table.insert(ESPCache[v.Name].Bones, boneLine)
-        end
     end
     return ESPCache[v.Name]
 end
@@ -415,33 +400,25 @@ end
 
 local LoadCharacter = function(v)
     if v == plr then return end
-    repeat wait() until v.Character ~= nil
+    repeat task.wait() until v.Character ~= nil
     v.Character:WaitForChild("Humanoid")
-    
     local vHolder = Holder:FindFirstChild(v.Name)
     if not vHolder then return end
     vHolder:ClearAllChildren()
-    
     local t = NameTag:Clone()
     t.Name = v.Name .. "NameTag"
     t.Enabled = true
     t.Parent = vHolder
     t.Adornee = v.Character:WaitForChild("Head", 5)
     if not t.Adornee then return end
-    
     t.Tag.Name = "TargetTag"
 end
 
 local UnloadCharacter = function(v)
     local vHolder = Holder:FindFirstChild(v.Name)
     if vHolder then vHolder:ClearAllChildren() end
-    
     if ESPCache[v.Name] then
         pcall(function() ESPCache[v.Name].Box:Remove() end)
-        pcall(function() ESPCache[v.Name].Tracer:Remove() end)
-        for _, bone in pairs(ESPCache[v.Name].Bones) do
-            pcall(function() bone:Remove() end)
-        end
         ESPCache[v.Name] = nil
     end
 end
@@ -461,64 +438,18 @@ local UnloadPlayer = function(v)
     if vHolder then vHolder:Destroy() end
 end
 
-for i,v in pairs(players:GetPlayers()) do
+for _, v in ipairs(Players:GetPlayers()) do
     if v ~= plr then task.spawn(function() pcall(LoadPlayer, v) end) end
 end
-
-players.PlayerAdded:Connect(function(v) pcall(LoadPlayer, v) end)
-players.PlayerRemoving:Connect(function(v) pcall(UnloadPlayer, v) end)
+Players.PlayerAdded:Connect(function(v) pcall(LoadPlayer, v) end)
+Players.PlayerRemoving:Connect(function(v) pcall(UnloadPlayer, v) end)
 plr.NameDisplayDistance = 0
 
-local function drawSkeleton(char, esp, onScreen)
-    if not onScreen or not _G.ShowSkeletons then 
-        for _, bone in pairs(esp.Bones) do bone.Visible = false end
-        return 
-    end
-
-    local joints = {}
-    if char:FindFirstChild("UpperTorso") then
-        joints = {
-            {"Head", "UpperTorso"}, {"UpperTorso", "LowerTorso"},
-            {"UpperTorso", "LeftUpperArm"}, {"LeftUpperArm", "LeftLowerArm"}, {"LeftLowerArm", "LeftHand"},
-            {"UpperTorso", "RightUpperArm"}, {"RightUpperArm", "RightLowerArm"}, {"RightLowerArm", "RightHand"},
-            {"LowerTorso", "LeftUpperLeg"}, {"LeftUpperLeg", "LeftLowerLeg"}, {"LeftLowerLeg", "LeftFoot"},
-            {"LowerTorso", "RightUpperLeg"}, {"RightUpperLeg", "RightLowerLeg"}, {"RightLowerLeg", "RightFoot"}
-        }
-    elseif char:FindFirstChild("Torso") then
-        joints = {
-            {"Head", "Torso"}, {"Torso", "Left Arm"}, {"Torso", "Right Arm"},
-            {"Torso", "Left Leg"}, {"Torso", "Right Leg"}
-        }
-    end
-
-    local index = 1
-    for _, pair in pairs(joints) do
-        local p1, p2 = char:FindFirstChild(pair[1]), char:FindFirstChild(pair[2])
-        if p1 and p2 then
-            local pos1, os1 = camera:WorldToViewportPoint(p1.Position)
-            local pos2, os2 = camera:WorldToViewportPoint(p2.Position)
-            if os1 and os2 then
-                local boneLine = esp.Bones[index]
-                if boneLine then
-                    boneLine.From = Vector2.new(pos1.X, pos1.Y)
-                    boneLine.To = Vector2.new(pos2.X, pos2.Y)
-                    boneLine.Color = _G.Colors.ShowSkeletons
-                    boneLine.Visible = true
-                    index = index + 1
-                end
-            end
-        end
-    end
-    for i = index, #esp.Bones do
-        esp.Bones[i].Visible = false
-    end
-end
-
--- FullBright 処理ループ（ON/OFF時に確実に元に戻す）
+-- FullBright
 task.spawn(function()
     while task.wait(0.5) do
         pcall(function()
-            if _G.FullBright then
+            if _G.Settings.FullBright then
                 Lighting.Brightness = 2
                 Lighting.ClockTime = 14
                 Lighting.FogEnd = 100000
@@ -535,25 +466,17 @@ task.spawn(function()
     end
 end)
 
--- Workspace.Players.Killers ハイライト処理
+-- Killers ハイライト
 task.spawn(function()
     local killerFolderContainer = workspace:WaitForChild("Players", 5) and workspace.Players:WaitForChild("Killers", 5)
-    
     local function setupKillerModel(model)
         if not model:IsA("Model") then return end
-        
         local usernameAttr = model:GetAttribute("Username")
         if usernameAttr and usernameAttr == plr.Name then
-            if model:FindFirstChild("KillerESP_Highlight") then
-                model.KillerESP_Highlight:Destroy()
-            end
+            if model:FindFirstChild("KillerESP_Highlight") then model.KillerESP_Highlight:Destroy() end
             return
         end
-        
-        if model:FindFirstChild("KillerESP_Highlight") then
-            model.KillerESP_Highlight:Destroy()
-        end
-        
+        if model:FindFirstChild("KillerESP_Highlight") then model.KillerESP_Highlight:Destroy() end
         local highlight = Instance.new("Highlight")
         highlight.Name = "KillerESP_Highlight"
         highlight.Adornee = model
@@ -563,13 +486,8 @@ task.spawn(function()
     end
 
     if killerFolderContainer then
-        for _, child in ipairs(killerFolderContainer:GetChildren()) do
-            setupKillerModel(child)
-        end
-        killerFolderContainer.ChildAdded:Connect(function(child)
-            task.wait(0.1)
-            setupKillerModel(child)
-        end)
+        for _, child in ipairs(killerFolderContainer:GetChildren()) do setupKillerModel(child) end
+        killerFolderContainer.ChildAdded:Connect(function(child) task.wait(0.1) setupKillerModel(child) end)
     end
 
     while task.wait(0.2) do
@@ -578,13 +496,11 @@ task.spawn(function()
                 if child:IsA("Model") then
                     local usernameAttr = child:GetAttribute("Username")
                     if usernameAttr and usernameAttr == plr.Name then
-                        if child:FindFirstChild("KillerESP_Highlight") then
-                            child.KillerESP_Highlight:Destroy()
-                        end
+                        if child:FindFirstChild("KillerESP_Highlight") then child.KillerESP_Highlight:Destroy() end
                     else
                         local hl = child:FindFirstChild("KillerESP_Highlight")
                         if hl then
-                            hl.Enabled = _G.ShowKillerHighlight
+                            hl.Enabled = _G.Settings.ShowKillerHighlight
                             hl.FillColor = _G.Colors.ShowKillerHighlight
                             hl.OutlineColor = _G.Colors.ShowKillerHighlight
                         else
@@ -595,16 +511,15 @@ task.spawn(function()
             end
         else
             local p = workspace:FindFirstChild("Players")
-            if p then
-                killerFolderContainer = p:FindFirstChild("Killers")
-            end
+            if p then killerFolderContainer = p:FindFirstChild("Killers") end
         end
     end
 end)
 
--- ==========================================
--- Gear & Tool ハイライト処理 (InnerMap内)
--- ==========================================
+-- 状態保存用テーブル（元のTransparencyを保持）
+local originalTransparencies = {}
+
+-- Survivor, Tool, & Workspace.Map.Ingame 内の各種オブジェクトハイライト処理 (Killers Object 判定)
 task.spawn(function()
     while task.wait(0.5) do
         pcall(function()
@@ -612,31 +527,56 @@ task.spawn(function()
             if not map then return end
             local ingame = map:FindFirstChild("Ingame")
             if not ingame then return end
+            
             local innerMap = ingame:FindFirstChild("Map")
-            if not innerMap then return end
+            if innerMap then
+                local gearsTest = innerMap:FindFirstChild("GearsTest")
+                if gearsTest then
+                    for _, child in ipairs(gearsTest:GetChildren()) do
+                        if child:IsA("Model") and child.Name == "Gear" then
+                            local details = child:FindFirstChild("Details")
+                            if details and details:IsA("Model") then
+                                local defaultPart = details:FindFirstChild("default")
+                                if defaultPart and defaultPart:IsA("BasePart") then
+                                    local hl = defaultPart:FindFirstChild("Gear_Highlight")
+                                    if _G.Settings.ShowGearHighlight then
+                                        if not hl then
+                                            hl = Instance.new("Highlight")
+                                            hl.Name = "Gear_Highlight"
+                                            hl.Adornee = defaultPart
+                                            hl.FillTransparency = 0.4
+                                            hl.OutlineTransparency = 0
+                                            hl.Parent = defaultPart
+                                        end
+                                        hl.Enabled = true
+                                        hl.FillColor = _G.Colors.ShowGearHighlight
+                                        hl.OutlineColor = _G.Colors.ShowGearHighlight
+                                    else
+                                        if hl then hl.Enabled = false end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
 
-            -- 1. GearsTest 内の Gearモデル内 Details.default のハイライト
-            local gearsTest = innerMap:FindFirstChild("GearsTest")
-            if gearsTest then
-                for _, child in ipairs(gearsTest:GetChildren()) do
-                    if child:IsA("Model") and child.Name == "Gear" then
-                        local details = child:FindFirstChild("Details")
-                        if details and details:IsA("Model") then
-                            local defaultPart = details:FindFirstChild("default")
-                            if defaultPart and defaultPart:IsA("BasePart") then
-                                local hl = defaultPart:FindFirstChild("Gear_Highlight")
-                                if _G.ShowGearHighlight then
+                for _, obj in ipairs(innerMap:GetChildren()) do
+                    if obj:IsA("Tool") then
+                        for _, desc in ipairs(obj:GetDescendants()) do
+                            if desc:IsA("MeshPart") then
+                                local hl = desc:FindFirstChild("Tool_Highlight")
+                                if _G.Settings.ShowToolHighlight then
                                     if not hl then
                                         hl = Instance.new("Highlight")
-                                        hl.Name = "Gear_Highlight"
-                                        hl.Adornee = defaultPart
+                                        hl.Name = "Tool_Highlight"
+                                        hl.Adornee = desc
                                         hl.FillTransparency = 0.4
                                         hl.OutlineTransparency = 0
-                                        hl.Parent = defaultPart
+                                        hl.Parent = desc
                                     end
                                     hl.Enabled = true
-                                    hl.FillColor = _G.Colors.ShowGearHighlight
-                                    hl.OutlineColor = _G.Colors.ShowGearHighlight
+                                    hl.FillColor = _G.Colors.ShowToolHighlight
+                                    hl.OutlineColor = _G.Colors.ShowToolHighlight
                                 else
                                     if hl then hl.Enabled = false end
                                 end
@@ -646,24 +586,57 @@ task.spawn(function()
                 end
             end
 
-            -- 2. InnerMap直下または中にある Tool（Tool または Model）へのハイライト処理
-            for _, obj in ipairs(innerMap:GetChildren()) do
-                if obj.Name == "Tool" then
-                    local hl = obj:FindFirstChild("Tool_Highlight")
-                    if _G.ShowToolHighlight then
-                        if not hl then
-                            hl = Instance.new("Highlight")
-                            hl.Name = "Tool_Highlight"
-                            hl.Adornee = obj
-                            hl.FillTransparency = 0.4
-                            hl.OutlineTransparency = 0
-                            hl.Parent = obj
+            -- Workspace.Map.Ingame 内の処理 (フォルダ・モデル両対応)
+            for _, child in ipairs(ingame:GetChildren()) do
+                if child.Name ~= "Map" then
+                    -- 1. [Username]Shadows フォルダ判定 (末尾が "Shadows" のフォルダ/モデル)
+                    if string.sub(child.Name, -7) == "Shadows" then
+                        for _, part in ipairs(child:GetDescendants()) do
+                            if part:IsA("BasePart") and part.Name == "Shadow" then
+                                -- 元のTransparencyを記録していなければ保存
+                                if not originalTransparencies[part] then
+                                    originalTransparencies[part] = part.Transparency
+                                end
+
+                                local hl = part:FindFirstChild("KillerObject_Highlight")
+                                if _G.Settings.ShowKillerObjectHighlight then
+                                    part.Transparency = 0 -- ONの時は透明度0にする
+                                    if not hl then
+                                        hl = Instance.new("Highlight")
+                                        hl.Name = "KillerObject_Highlight"
+                                        hl.Adornee = part
+                                        hl.FillTransparency = 0.4
+                                        hl.OutlineTransparency = 0
+                                        hl.Parent = part
+                                    end
+                                    hl.Enabled = true
+                                    hl.FillColor = _G.Colors.ShowKillerObjectHighlight
+                                    hl.OutlineColor = _G.Colors.ShowKillerObjectHighlight
+                                else
+                                    if hl then hl.Enabled = false end
+                                    -- OFFの時は保存しておいた元のTransparencyに戻す
+                                    part.Transparency = originalTransparencies[part] or 1
+                                end
+                            end
                         end
-                        hl.Enabled = true
-                        hl.FillColor = _G.Colors.ShowToolHighlight
-                        hl.OutlineColor = _G.Colors.ShowToolHighlight
-                    else
-                        if hl then hl.Enabled = false end
+                    elseif child:IsA("Model") then
+                        -- 2. その他の通常モデル (PizzaDeliveryRig 等)
+                        local hl = child:FindFirstChild("KillerObject_Highlight")
+                        if _G.Settings.ShowKillerObjectHighlight then
+                            if not hl then
+                                hl = Instance.new("Highlight")
+                                hl.Name = "KillerObject_Highlight"
+                                hl.Adornee = child
+                                hl.FillTransparency = 0.4
+                                hl.OutlineTransparency = 0
+                                hl.Parent = child
+                            end
+                            hl.Enabled = true
+                            hl.FillColor = _G.Colors.ShowKillerObjectHighlight
+                            hl.OutlineColor = _G.Colors.ShowKillerObjectHighlight
+                        else
+                            if hl then hl.Enabled = false end
+                        end
                     end
                 end
             end
@@ -671,30 +644,24 @@ task.spawn(function()
     end
 end)
 
--- メインのプレイヤーESP描画ループ
+-- プレイヤーESPループ
 task.spawn(function()
     while task.wait() do
-        for i, v in pairs(players:GetPlayers()) do
+        for _, v in ipairs(Players:GetPlayers()) do
             pcall(function()
                 local esp = getESP(v)
-                
                 if v ~= plr and v.Character and v.Character:FindFirstChild("HumanoidRootPart") and v.Character:FindFirstChild("Humanoid") then
                     local hrp = v.Character.HumanoidRootPart
                     local screenPos, onScreen = camera:WorldToViewportPoint(hrp.Position)
-                    
-                    if v.Character:FindFirstChild("GetReal") then
-                        v.Character.GetReal:Destroy()
-                    end
                     
                     if onScreen then
                         local head = v.Character:FindFirstChild("Head")
                         local headPos = head and camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0)) or screenPos
                         local legPos = camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
-                        
                         local boxHeight = math.abs(headPos.Y - legPos.Y)
                         local boxWidth = boxHeight / 1.5
                         
-                        if _G.ShowBoxes then
+                        if _G.Settings.ShowBoxes then
                             esp.Box.Size = Vector2.new(boxWidth, boxHeight)
                             esp.Box.Position = Vector2.new(screenPos.X - boxWidth / 2, screenPos.Y - boxHeight / 2)
                             esp.Box.Color = _G.Colors.ShowBoxes
@@ -703,39 +670,26 @@ task.spawn(function()
                             esp.Box.Visible = false
                         end
                         
-                        if _G.ShowTracers then
-                            esp.Tracer.Color = _G.Colors.ShowTracers
-                            esp.Tracer.From = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
-                            esp.Tracer.To = Vector2.new(screenPos.X, screenPos.Y)
-                            esp.Tracer.Visible = true
-                        else
-                            esp.Tracer.Visible = false
-                        end
-                        
                         local vHolder = Holder:FindFirstChild(v.Name)
                         if vHolder then
                             local nameTag = vHolder:FindFirstChild(v.Name .. "NameTag")
                             if nameTag then
-                                nameTag.Enabled = _G.ShowNames
+                                nameTag.Enabled = _G.Settings.ShowNames
                                 local targetTag = nameTag:FindFirstChild("TargetTag")
-                                if targetTag and _G.ShowNames then
+                                if targetTag and _G.Settings.ShowNames then
                                     updateTagText(v, targetTag)
                                 end
                             end
                         end
                     else
                         esp.Box.Visible = false
-                        esp.Tracer.Visible = false
                         local vHolder = Holder:FindFirstChild(v.Name)
                         if vHolder and vHolder:FindFirstChild(v.Name .. "NameTag") then
                             vHolder[v.Name .. "NameTag"].Enabled = false
                         end
                     end
-                    drawSkeleton(v.Character, esp, onScreen)
                 else
                     esp.Box.Visible = false
-                    esp.Tracer.Visible = false
-                    for _, bone in pairs(esp.Bones) do bone.Visible = false end
                 end
             end)
         end
