@@ -4,8 +4,8 @@ _G.ShowBoxes = false
 _G.ShowTracers = false
 _G.ShowSkeletons = false
 _G.ShowKillerHighlight = false
-_G.ShowGeneratorHighlight = false
 _G.ShowGearHighlight = false
+_G.ShowToolHighlight = false -- 追加: Tool用Highlight
 _G.FullBright = false
 
 -- 各項目ごとのカラーデータ初期値
@@ -15,8 +15,8 @@ _G.Colors = {
     ShowTracers = Color3.fromRGB(255, 255, 255),
     ShowSkeletons = Color3.fromRGB(255, 255, 255),
     ShowKillerHighlight = Color3.fromRGB(255, 50, 50),
-    ShowGeneratorHighlight = Color3.fromRGB(255, 255, 0),
-    ShowGearHighlight = Color3.fromRGB(0, 255, 255)
+    ShowGearHighlight = Color3.fromRGB(0, 255, 255),
+    ShowToolHighlight = Color3.fromRGB(255, 128, 0) -- オレンジ色（Tool用）
 }
 
 -- 現在カラー編集対象になっている項目
@@ -24,7 +24,16 @@ local currentConfigTarget = "ShowNames"
 
 local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
-local fileName = "ESP_Config_Advanced_Final_v7.json"
+local fileName = "ESP_Config_Advanced_Final_v8.json"
+
+-- FullBright用元の環境データの保存用
+local originalLighting = {
+    Brightness = Lighting.Brightness,
+    ClockTime = Lighting.ClockTime,
+    FogEnd = Lighting.FogEnd,
+    GlobalShadows = Lighting.GlobalShadows,
+    OutdoorAmbient = Lighting.OutdoorAmbient
+}
 
 -- セーブ機能
 local function saveConfig()
@@ -34,8 +43,8 @@ local function saveConfig()
         ShowTracers = _G.ShowTracers,
         ShowSkeletons = _G.ShowSkeletons,
         ShowKillerHighlight = _G.ShowKillerHighlight,
-        ShowGeneratorHighlight = _G.ShowGeneratorHighlight,
         ShowGearHighlight = _G.ShowGearHighlight,
+        ShowToolHighlight = _G.ShowToolHighlight,
         FullBright = _G.FullBright,
         Colors = {
             Names = {math.floor(_G.Colors.ShowNames.R*255), math.floor(_G.Colors.ShowNames.G*255), math.floor(_G.Colors.ShowNames.B*255)},
@@ -43,8 +52,8 @@ local function saveConfig()
             Tracers = {math.floor(_G.Colors.ShowTracers.R*255), math.floor(_G.Colors.ShowTracers.G*255), math.floor(_G.Colors.ShowTracers.B*255)},
             Skeletons = {math.floor(_G.Colors.ShowSkeletons.R*255), math.floor(_G.Colors.ShowSkeletons.G*255), math.floor(_G.Colors.ShowSkeletons.B*255)},
             KillerHighlight = {math.floor(_G.Colors.ShowKillerHighlight.R*255), math.floor(_G.Colors.ShowKillerHighlight.G*255), math.floor(_G.Colors.ShowKillerHighlight.B*255)},
-            GeneratorHighlight = {math.floor(_G.Colors.ShowGeneratorHighlight.R*255), math.floor(_G.Colors.ShowGeneratorHighlight.G*255), math.floor(_G.Colors.ShowGeneratorHighlight.B*255)},
-            GearHighlight = {math.floor(_G.Colors.ShowGearHighlight.R*255), math.floor(_G.Colors.ShowGearHighlight.G*255), math.floor(_G.Colors.ShowGearHighlight.B*255)}
+            GearHighlight = {math.floor(_G.Colors.ShowGearHighlight.R*255), math.floor(_G.Colors.ShowGearHighlight.G*255), math.floor(_G.Colors.ShowGearHighlight.B*255)},
+            ToolHighlight = {math.floor(_G.Colors.ShowToolHighlight.R*255), math.floor(_G.Colors.ShowToolHighlight.G*255), math.floor(_G.Colors.ShowToolHighlight.B*255)}
         }
     }
     pcall(function()
@@ -62,8 +71,8 @@ local function loadConfig()
             if data.ShowTracers ~= nil then _G.ShowTracers = data.ShowTracers end
             if data.ShowSkeletons ~= nil then _G.ShowSkeletons = data.ShowSkeletons end
             if data.ShowKillerHighlight ~= nil then _G.ShowKillerHighlight = data.ShowKillerHighlight end
-            if data.ShowGeneratorHighlight ~= nil then _G.ShowGeneratorHighlight = data.ShowGeneratorHighlight end
             if data.ShowGearHighlight ~= nil then _G.ShowGearHighlight = data.ShowGearHighlight end
+            if data.ShowToolHighlight ~= nil then _G.ShowToolHighlight = data.ShowToolHighlight end
             if data.FullBright ~= nil then _G.FullBright = data.FullBright end
             
             if data.Colors then
@@ -72,8 +81,8 @@ local function loadConfig()
                 if data.Colors.Tracers then _G.Colors.ShowTracers = Color3.fromRGB(unpack(data.Colors.Tracers)) end
                 if data.Colors.Skeletons then _G.Colors.ShowSkeletons = Color3.fromRGB(unpack(data.Colors.Skeletons)) end
                 if data.Colors.KillerHighlight then _G.Colors.ShowKillerHighlight = Color3.fromRGB(unpack(data.Colors.KillerHighlight)) end
-                if data.Colors.GeneratorHighlight then _G.Colors.ShowGeneratorHighlight = Color3.fromRGB(unpack(data.Colors.GeneratorHighlight)) end
                 if data.Colors.GearHighlight then _G.Colors.ShowGearHighlight = Color3.fromRGB(unpack(data.Colors.GearHighlight)) end
+                if data.Colors.ToolHighlight then _G.Colors.ShowToolHighlight = Color3.fromRGB(unpack(data.Colors.ToolHighlight)) end
             end
         end
     end)
@@ -266,8 +275,8 @@ createRowComponent("2D BOXES", "ShowBoxes", true)
 createRowComponent("TRACERS", "ShowTracers", true)
 createRowComponent("SKELETONS", "ShowSkeletons", true)
 createRowComponent("KILLER HIGHLIGHT", "ShowKillerHighlight", true)
-createRowComponent("GENERATOR ESP", "ShowGeneratorHighlight", true)
 createRowComponent("GEAR ESP", "ShowGearHighlight", true)
+createRowComponent("TOOL ESP", "ShowToolHighlight", true) -- 追加: Tool用トグル
 createRowComponent("FULLBRIGHT", "FullBright", false)
 
 local Divider = Instance.new("Frame", MainPanel)
@@ -505,7 +514,7 @@ local function drawSkeleton(char, esp, onScreen)
     end
 end
 
--- FullBright 処理ループ
+-- FullBright 処理ループ（ON/OFF時に確実に元に戻す）
 task.spawn(function()
     while task.wait(0.5) do
         pcall(function()
@@ -516,7 +525,11 @@ task.spawn(function()
                 Lighting.GlobalShadows = false
                 Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
             else
-                Lighting.GlobalShadows = true
+                Lighting.Brightness = originalLighting.Brightness
+                Lighting.ClockTime = originalLighting.ClockTime
+                Lighting.FogEnd = originalLighting.FogEnd
+                Lighting.GlobalShadows = originalLighting.GlobalShadows
+                Lighting.OutdoorAmbient = originalLighting.OutdoorAmbient
             end
         end)
     end
@@ -590,7 +603,7 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- Generator（モデル自体） & Gear ハイライト処理
+-- Gear & Tool ハイライト処理 (InnerMap内)
 -- ==========================================
 task.spawn(function()
     while task.wait(0.5) do
@@ -602,28 +615,7 @@ task.spawn(function()
             local innerMap = ingame:FindFirstChild("Map")
             if not innerMap then return end
 
-            -- Generatorモデル全体に対するハイライト
-            local generatorModel = innerMap:FindFirstChild("Generator")
-            if generatorModel and generatorModel:IsA("Model") then
-                local hl = generatorModel:FindFirstChild("Generator_Highlight")
-                if _G.ShowGeneratorHighlight then
-                    if not hl then
-                        hl = Instance.new("Highlight")
-                        hl.Name = "Generator_Highlight"
-                        hl.Adornee = generatorModel
-                        hl.FillTransparency = 0.4
-                        hl.OutlineTransparency = 0
-                        hl.Parent = generatorModel
-                    end
-                    hl.Enabled = true
-                    hl.FillColor = _G.Colors.ShowGeneratorHighlight
-                    hl.OutlineColor = _G.Colors.ShowGeneratorHighlight
-                else
-                    if hl then hl.Enabled = false end
-                end
-            end
-
-            -- GearsTest 内の Gearモデル内 Details.default のハイライト
+            -- 1. GearsTest 内の Gearモデル内 Details.default のハイライト
             local gearsTest = innerMap:FindFirstChild("GearsTest")
             if gearsTest then
                 for _, child in ipairs(gearsTest:GetChildren()) do
@@ -650,6 +642,28 @@ task.spawn(function()
                                 end
                             end
                         end
+                    end
+                end
+            end
+
+            -- 2. InnerMap直下または中にある Tool（Tool または Model）へのハイライト処理
+            for _, obj in ipairs(innerMap:GetChildren()) do
+                if obj.Name == "Tool" then
+                    local hl = obj:FindFirstChild("Tool_Highlight")
+                    if _G.ShowToolHighlight then
+                        if not hl then
+                            hl = Instance.new("Highlight")
+                            hl.Name = "Tool_Highlight"
+                            hl.Adornee = obj
+                            hl.FillTransparency = 0.4
+                            hl.OutlineTransparency = 0
+                            hl.Parent = obj
+                        end
+                        hl.Enabled = true
+                        hl.FillColor = _G.Colors.ShowToolHighlight
+                        hl.OutlineColor = _G.Colors.ShowToolHighlight
+                    else
+                        if hl then hl.Enabled = false end
                     end
                 end
             end
