@@ -6,7 +6,7 @@ _G.ShowSkeletons = false
 _G.ShowKillerHighlight = false
 _G.ShowGeneratorHighlight = false
 _G.ShowGearHighlight = false
-_G.FullBright = false -- 追加: FullBright用変数
+_G.FullBright = false
 
 -- 各項目ごとのカラーデータ初期値
 _G.Colors = {
@@ -24,7 +24,7 @@ local currentConfigTarget = "ShowNames"
 
 local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
-local fileName = "ESP_Config_Advanced_Final_v6.json"
+local fileName = "ESP_Config_Advanced_Final_v7.json"
 
 -- セーブ機能
 local function saveConfig()
@@ -110,7 +110,7 @@ ToggleStroke.Thickness = 1
 ToggleStroke.Transparency = 0.4
 
 local MainPanel = Instance.new("Frame", ScreenGui)
-MainPanel.Size = UDim2.new(0, 230, 0, 475) -- 項目追加に伴いさらに高さを拡張
+MainPanel.Size = UDim2.new(0, 230, 0, 475)
 MainPanel.Position = UDim2.new(0, 20, 0, 65)
 MainPanel.BackgroundColor3 = Color3.fromRGB(15, 15, 17)
 MainPanel.BorderSizePixel = 0
@@ -167,7 +167,6 @@ end
 makeDraggable(MainPanel)
 makeDraggable(MenuToggle)
 
--- 項目コンテナ＋プレビュー機能付きトグル生成（カラー非連動のFullBright用にも対応）
 local function createRowComponent(text, globalVar, hasColor)
     local RowFrame = Instance.new("Frame", MainPanel)
     RowFrame.Size = UDim2.new(0, 205, 0, 34)
@@ -269,15 +268,13 @@ createRowComponent("SKELETONS", "ShowSkeletons", true)
 createRowComponent("KILLER HIGHLIGHT", "ShowKillerHighlight", true)
 createRowComponent("GENERATOR ESP", "ShowGeneratorHighlight", true)
 createRowComponent("GEAR ESP", "ShowGearHighlight", true)
-createRowComponent("FULLBRIGHT", "FullBright", false) -- 追加: FullBrightトグル
+createRowComponent("FULLBRIGHT", "FullBright", false)
 
--- 区切り線
 local Divider = Instance.new("Frame", MainPanel)
 Divider.Size = UDim2.new(0, 195, 0, 1)
 Divider.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
 Divider.BorderSizePixel = 0
 
--- RGBスライダーボタン
 local function createColorSlider(colorChannel)
     local btn = Instance.new("TextButton", MainPanel)
     btn.Size = UDim2.new(0, 205, 0, 28)
@@ -508,9 +505,7 @@ local function drawSkeleton(char, esp, onScreen)
     end
 end
 
--- ==========================================
 -- FullBright 処理ループ
--- ==========================================
 task.spawn(function()
     while task.wait(0.5) do
         pcall(function()
@@ -521,16 +516,13 @@ task.spawn(function()
                 Lighting.GlobalShadows = false
                 Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
             else
-                -- 元に戻す場合のデフォルト値（必要に応じて調整）
                 Lighting.GlobalShadows = true
             end
         end)
     end
 end)
 
--- ==========================================
 -- Workspace.Players.Killers ハイライト処理
--- ==========================================
 task.spawn(function()
     local killerFolderContainer = workspace:WaitForChild("Players", 5) and workspace.Players:WaitForChild("Killers", 5)
     
@@ -598,7 +590,7 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- Generator & Gear ハイライト処理
+-- Generator（モデル自体） & Gear ハイライト処理
 -- ==========================================
 task.spawn(function()
     while task.wait(0.5) do
@@ -610,29 +602,28 @@ task.spawn(function()
             local innerMap = ingame:FindFirstChild("Map")
             if not innerMap then return end
 
-            local generator = innerMap:FindFirstChild("Generator")
-            if generator then
-                local mainPart = generator:FindFirstChild("Main")
-                if mainPart and mainPart:IsA("BasePart") then
-                    local hl = mainPart:FindFirstChild("Generator_Highlight")
-                    if _G.ShowGeneratorHighlight then
-                        if not hl then
-                            hl = Instance.new("Highlight")
-                            hl.Name = "Generator_Highlight"
-                            hl.Adornee = mainPart
-                            hl.FillTransparency = 0.4
-                            hl.OutlineTransparency = 0
-                            hl.Parent = mainPart
-                        end
-                        hl.Enabled = true
-                        hl.FillColor = _G.Colors.ShowGeneratorHighlight
-                        hl.OutlineColor = _G.Colors.ShowGeneratorHighlight
-                    else
-                        if hl then hl.Enabled = false end
+            -- Generatorモデル全体に対するハイライト
+            local generatorModel = innerMap:FindFirstChild("Generator")
+            if generatorModel and generatorModel:IsA("Model") then
+                local hl = generatorModel:FindFirstChild("Generator_Highlight")
+                if _G.ShowGeneratorHighlight then
+                    if not hl then
+                        hl = Instance.new("Highlight")
+                        hl.Name = "Generator_Highlight"
+                        hl.Adornee = generatorModel
+                        hl.FillTransparency = 0.4
+                        hl.OutlineTransparency = 0
+                        hl.Parent = generatorModel
                     end
+                    hl.Enabled = true
+                    hl.FillColor = _G.Colors.ShowGeneratorHighlight
+                    hl.OutlineColor = _G.Colors.ShowGeneratorHighlight
+                else
+                    if hl then hl.Enabled = false end
                 end
             end
 
+            -- GearsTest 内の Gearモデル内 Details.default のハイライト
             local gearsTest = innerMap:FindFirstChild("GearsTest")
             if gearsTest then
                 for _, child in ipairs(gearsTest:GetChildren()) do
