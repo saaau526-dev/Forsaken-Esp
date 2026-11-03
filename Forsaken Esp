@@ -6,6 +6,8 @@ local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
 local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
+local TextChatService = game:GetService("TextChatService")
+local StarterGui = game:GetService("StarterGui")
 
 local plr = Players.LocalPlayer
 local camera = workspace.CurrentCamera
@@ -18,7 +20,9 @@ _G.Settings = {
     ShowKillerObjectHighlight = false,
     ShowGearHighlight = false,
     ShowToolHighlight = false,
-    FullBright = false
+    FullBright = false,
+    TextChatVisible = true, -- TextChat表示設定
+    FOV = 70                -- FOV設定
 }
 
 _G.Colors = {
@@ -133,9 +137,12 @@ TitleFix.BackgroundColor3 = Color3.fromRGB(24, 24, 32)
 TitleFix.BorderSizePixel = 0
 
 -- ドラッグ機能
+local isSliderDragging = false
+
 local function makeDraggable(frame)
     local dragging, dragInput, dragStart, startPos
     frame.InputBegan:Connect(function(input)
+        if isSliderDragging then return end
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
@@ -151,6 +158,7 @@ local function makeDraggable(frame)
         end
     end)
     UserInputService.InputChanged:Connect(function(input)
+        if isSliderDragging then return end
         if input == dragInput and dragging then
             local delta = input.Position - dragStart
             frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
@@ -293,6 +301,7 @@ createButton(col3, "Gear Esp", "ShowGearHighlight", 28, true)
 createButton(col3, "Tool Esp", "ShowToolHighlight", 60, true)
 
 createButton(col4, "FullBright", "FullBright", 28, false)
+createButton(col4, "TextChat", "TextChatVisible", 60, false) -- TextChatトグル追加
 
 local function createColorSlider(parentCol, colorChannel, posY)
     local btn = Instance.new("TextButton", parentCol)
@@ -347,16 +356,90 @@ local function createColorSlider(parentCol, colorChannel, posY)
     updateColorDisplay()
 end
 
-createColorSlider(col4, "R", 60)
-createColorSlider(col4, "G", 92)
-createColorSlider(col4, "B", 124)
+createColorSlider(col4, "R", 92)
+createColorSlider(col4, "G", 124)
+createColorSlider(col4, "B", 156)
+
+-- FOVスライダーの追加
+local function createFovSlider(parentCol, posY)
+    local SliderFrame = Instance.new("Frame", parentCol)
+    SliderFrame.Size = UDim2.new(1, 0, 0, 24)
+    SliderFrame.Position = UDim2.new(0, 0, 0, posY)
+    SliderFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 30)
+    SliderFrame.BorderSizePixel = 0
+
+    local sfCorner = Instance.new("UICorner", SliderFrame)
+    sfCorner.CornerRadius = UDim.new(0, 4)
+    local sfStroke = Instance.new("UIStroke", SliderFrame)
+    sfStroke.Thickness = 1
+    sfStroke.Color = Color3.fromRGB(80, 70, 100)
+    sfStroke.Transparency = 0.5
+
+    local FillBar = Instance.new("Frame", SliderFrame)
+    FillBar.Size = UDim2.new(0, 0, 1, 0)
+    FillBar.BackgroundColor3 = Color3.fromRGB(60, 50, 90)
+    FillBar.BorderSizePixel = 0
+    local fbCorner = Instance.new("UICorner", FillBar)
+    fbCorner.CornerRadius = UDim.new(0, 4)
+
+    local Label = Instance.new("TextLabel", SliderFrame)
+    Label.Size = UDim2.new(1, 0, 1, 0)
+    Label.BackgroundTransparency = 1
+    Label.Font = Enum.Font.GothamMedium
+    Label.TextSize = 10
+    Label.TextColor3 = Color3.fromRGB(255, 220, 100)
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local padding = Instance.new("UIPadding", Label)
+    padding.PaddingLeft = UDim.new(0, 6)
+
+    local function updateSlider(value)
+        value = math.clamp(value, 70, 120)
+        _G.Settings.FOV = math.floor(value)
+        
+        Label.Text = "FOV: " .. tostring(_G.Settings.FOV)
+        local percent = (_G.Settings.FOV - 70) / (120 - 70)
+        FillBar.Size = UDim2.new(percent, 0, 1, 0)
+    end
+
+    SliderFrame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            isSliderDragging = true
+            local mousePos = UserInputService:GetMouseLocation()
+            local relX = mousePos.X - SliderFrame.AbsolutePosition.X
+            local percent = math.clamp(relX / SliderFrame.AbsoluteSize.X, 0, 1)
+            updateSlider(70 + (percent * 50))
+            saveConfig()
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            isSliderDragging = false
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if isSliderDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local mousePos = UserInputService:GetMouseLocation()
+            local relX = mousePos.X - SliderFrame.AbsolutePosition.X
+            local percent = math.clamp(relX / SliderFrame.AbsoluteSize.X, 0, 1)
+            updateSlider(70 + (percent * 50))
+            saveConfig()
+        end
+    end)
+
+    updateSlider(_G.Settings.FOV)
+end
+
+createFovSlider(col4, 188)
 
 MenuToggle.MouseButton1Click:Connect(function()
     MainPanel.Visible = not MainPanel.Visible
 end)
 
 -- ==========================================
--- 機能ロジック（ESP・FullBright等）
+-- 機能ロジック（ESP・FullBright・FOV・TextChat等）
 -- ==========================================
 local NameTag = Instance.new("BillboardGui")
 NameTag.Name = "nilNameTag"
@@ -445,6 +528,25 @@ Players.PlayerAdded:Connect(function(v) pcall(LoadPlayer, v) end)
 Players.PlayerRemoving:Connect(function(v) pcall(UnloadPlayer, v) end)
 plr.NameDisplayDistance = 0
 
+-- 毎フレーム処理（FOV・FullBright・TextChat切替）
+RunService = game:GetService("RunService")
+RunService.RenderStepped:Connect(function()
+    pcall(function()
+        if camera then
+            camera.CameraType = Enum.CameraType.Custom
+            camera.FieldOfView = _G.Settings.FOV or 70
+        end
+
+        pcall(function()
+            StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Chat, _G.Settings.TextChatVisible)
+        end)
+        pcall(function()
+            TextChatService.ChatWindowConfiguration.Enabled = _G.Settings.TextChatVisible
+            TextChatService.ChatInputBarConfiguration.Enabled = _G.Settings.TextChatVisible
+        end)
+    end)
+end)
+
 -- FullBright
 task.spawn(function()
     while task.wait(0.5) do
@@ -516,10 +618,10 @@ task.spawn(function()
     end
 end)
 
--- 状態保存用テーブル（元のTransparencyを保持）
+-- 状態保存用テーブル
 local originalTransparencies = {}
 
--- Survivor, Tool, & Workspace.Map.Ingame 内の各種オブジェクトハイライト処理 (Killers Object 判定)
+-- Survivor, Tool, & Workspace.Map.Ingame 内の各種オブジェクトハイライト処理
 task.spawn(function()
     while task.wait(0.5) do
         pcall(function()
@@ -586,21 +688,18 @@ task.spawn(function()
                 end
             end
 
-            -- Workspace.Map.Ingame 内の処理 (フォルダ・モデル両対応)
             for _, child in ipairs(ingame:GetChildren()) do
                 if child.Name ~= "Map" then
-                    -- 1. [Username]Shadows フォルダ判定 (末尾が "Shadows" のフォルダ/モデル)
                     if string.sub(child.Name, -7) == "Shadows" then
                         for _, part in ipairs(child:GetDescendants()) do
                             if part:IsA("BasePart") and part.Name == "Shadow" then
-                                -- 元のTransparencyを記録していなければ保存
                                 if not originalTransparencies[part] then
                                     originalTransparencies[part] = part.Transparency
                                 end
 
                                 local hl = part:FindFirstChild("KillerObject_Highlight")
                                 if _G.Settings.ShowKillerObjectHighlight then
-                                    part.Transparency = 0 -- ONの時は透明度0にする
+                                    part.Transparency = 0
                                     if not hl then
                                         hl = Instance.new("Highlight")
                                         hl.Name = "KillerObject_Highlight"
@@ -614,13 +713,11 @@ task.spawn(function()
                                     hl.OutlineColor = _G.Colors.ShowKillerObjectHighlight
                                 else
                                     if hl then hl.Enabled = false end
-                                    -- OFFの時は保存しておいた元のTransparencyに戻す
                                     part.Transparency = originalTransparencies[part] or 1
                                 end
                             end
                         end
                     elseif child:IsA("Model") then
-                        -- 2. その他の通常モデル (PizzaDeliveryRig 等)
                         local hl = child:FindFirstChild("KillerObject_Highlight")
                         if _G.Settings.ShowKillerObjectHighlight then
                             if not hl then
