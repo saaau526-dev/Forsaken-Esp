@@ -1,5 +1,5 @@
 -- ==========================================
--- Forsaken Hub - LocalScript (Folder Shadows Fix)
+-- Forsaken Hub - LocalScript (Robust Generator ESP)
 -- ==========================================
 
 local HttpService = game:GetService("HttpService")
@@ -8,6 +8,7 @@ local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
 local TextChatService = game:GetService("TextChatService")
 local StarterGui = game:GetService("StarterGui")
+local RunService = game:GetService("RunService")
 
 local plr = Players.LocalPlayer
 local camera = workspace.CurrentCamera
@@ -20,9 +21,12 @@ _G.Settings = {
     ShowKillerObjectHighlight = false,
     ShowGearHighlight = false,
     ShowToolHighlight = false,
+    ShowGeneratorHighlight = false, 
+    HideCompletedGen = false,       
+    JumpEnabled = false,            
     FullBright = false,
-    TextChatVisible = true, -- TextChat表示設定
-    FOV = 70                -- FOV設定
+    TextChatVisible = true,
+    FOV = 70
 }
 
 _G.Colors = {
@@ -31,7 +35,8 @@ _G.Colors = {
     ShowKillerHighlight = Color3.fromRGB(255, 50, 50),
     ShowKillerObjectHighlight = Color3.fromRGB(170, 0, 255),
     ShowGearHighlight = Color3.fromRGB(0, 255, 255),
-    ShowToolHighlight = Color3.fromRGB(255, 128, 0)
+    ShowToolHighlight = Color3.fromRGB(255, 128, 0),
+    ShowGeneratorHighlight = Color3.fromRGB(255, 255, 255)
 }
 
 local currentConfigTarget = "ShowNames"
@@ -46,7 +51,8 @@ local function saveConfig()
             KillerHighlight = {math.floor(_G.Colors.ShowKillerHighlight.R*255), math.floor(_G.Colors.ShowKillerHighlight.G*255), math.floor(_G.Colors.ShowKillerHighlight.B*255)},
             KillerObjectHighlight = {math.floor(_G.Colors.ShowKillerObjectHighlight.R*255), math.floor(_G.Colors.ShowKillerObjectHighlight.G*255), math.floor(_G.Colors.ShowKillerObjectHighlight.B*255)},
             GearHighlight = {math.floor(_G.Colors.ShowGearHighlight.R*255), math.floor(_G.Colors.ShowGearHighlight.G*255), math.floor(_G.Colors.ShowGearHighlight.B*255)},
-            ToolHighlight = {math.floor(_G.Colors.ShowToolHighlight.R*255), math.floor(_G.Colors.ShowToolHighlight.G*255), math.floor(_G.Colors.ShowToolHighlight.B*255)}
+            ToolHighlight = {math.floor(_G.Colors.ShowToolHighlight.R*255), math.floor(_G.Colors.ShowToolHighlight.G*255), math.floor(_G.Colors.ShowToolHighlight.B*255)},
+            GeneratorHighlight = {math.floor(_G.Colors.ShowGeneratorHighlight.R*255), math.floor(_G.Colors.ShowGeneratorHighlight.G*255), math.floor(_G.Colors.ShowGeneratorHighlight.B*255)}
         }
     }
     pcall(function() writefile(fileName, HttpService:JSONEncode(config)) end)
@@ -66,6 +72,7 @@ local function loadConfig()
                 if data.Colors.KillerObjectHighlight then _G.Colors.ShowKillerObjectHighlight = Color3.fromRGB(unpack(data.Colors.KillerObjectHighlight)) end
                 if data.Colors.GearHighlight then _G.Colors.ShowGearHighlight = Color3.fromRGB(unpack(data.Colors.GearHighlight)) end
                 if data.Colors.ToolHighlight then _G.Colors.ShowToolHighlight = Color3.fromRGB(unpack(data.Colors.ToolHighlight)) end
+                if data.Colors.GeneratorHighlight then _G.Colors.ShowGeneratorHighlight = Color3.fromRGB(unpack(data.Colors.GeneratorHighlight)) end
             end
         end
     end)
@@ -89,7 +96,6 @@ local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
 ScreenGui.Name = "Forsaken_Hub_Gui"
 ScreenGui.ResetOnSpawn = false
 
--- トグルボタン
 local MenuToggle = Instance.new("TextButton", ScreenGui)
 MenuToggle.Size = UDim2.new(0, 150, 0, 36)
 MenuToggle.Position = UDim2.new(0, 20, 0, 20)
@@ -103,7 +109,6 @@ MenuToggle.BorderSizePixel = 0
 local ToggleCorner = Instance.new("UICorner", MenuToggle)
 ToggleCorner.CornerRadius = UDim.new(0, 6)
 
--- メインパネル（幅 780px、高さ 280px）
 local MainPanel = Instance.new("Frame", ScreenGui)
 MainPanel.Size = UDim2.new(0, 780, 0, 280)
 MainPanel.Position = UDim2.new(0, 20, 0, 65)
@@ -117,7 +122,6 @@ local PanelStroke = Instance.new("UIStroke", MainPanel)
 PanelStroke.Color = Color3.fromRGB(60, 60, 80)
 PanelStroke.Thickness = 1.5
 
--- タイトルバー
 local TitleBar = Instance.new("TextLabel", MainPanel)
 TitleBar.Size = UDim2.new(1, 0, 0, 36)
 TitleBar.BackgroundColor3 = Color3.fromRGB(24, 24, 32)
@@ -136,7 +140,6 @@ TitleFix.Position = UDim2.new(0, 0, 1, -8)
 TitleFix.BackgroundColor3 = Color3.fromRGB(24, 24, 32)
 TitleFix.BorderSizePixel = 0
 
--- ドラッグ機能
 local isSliderDragging = false
 
 local function makeDraggable(frame)
@@ -169,7 +172,6 @@ end
 makeDraggable(MainPanel)
 makeDraggable(MenuToggle)
 
--- 4つの独立した列を配置するエリア
 local ContentArea = Instance.new("Frame", MainPanel)
 ContentArea.Size = UDim2.new(1, -16, 1, -48)
 ContentArea.Position = UDim2.new(0, 8, 0, 42)
@@ -290,7 +292,6 @@ local function createButton(parentCol, text, settingKey, posY, hasColor)
     updateDisplay()
 end
 
--- 各列へのボタン配置
 createButton(col1, "Names", "ShowNames", 28, true)
 createButton(col1, "Boxes", "ShowBoxes", 60, true)
 
@@ -299,13 +300,16 @@ createButton(col2, "Killers Obj", "ShowKillerObjectHighlight", 60, true)
 
 createButton(col3, "Gear Esp", "ShowGearHighlight", 28, true)
 createButton(col3, "Tool Esp", "ShowToolHighlight", 60, true)
+createButton(col3, "Generator Esp", "ShowGeneratorHighlight", 92, true)      
+createButton(col3, "Hide Done Generator", "HideCompletedGen", 124, false)   
 
 createButton(col4, "FullBright", "FullBright", 28, false)
-createButton(col4, "TextChat", "TextChatVisible", 60, false) -- TextChatトグル追加
+createButton(col4, "TextChat", "TextChatVisible", 60, false)
+createButton(col4, "Jump", "JumpEnabled", 92, false)
 
 local function createColorSlider(parentCol, colorChannel, posY)
     local btn = Instance.new("TextButton", parentCol)
-    btn.Size = UDim2.new(1, 0, 0, 24)
+    btn.Size = UDim2.new(1, 0, 0, 22)
     btn.Position = UDim2.new(0, 0, 0, posY)
     btn.Font = Enum.Font.GothamMedium
     btn.TextSize = 10
@@ -356,11 +360,10 @@ local function createColorSlider(parentCol, colorChannel, posY)
     updateColorDisplay()
 end
 
-createColorSlider(col4, "R", 92)
-createColorSlider(col4, "G", 124)
-createColorSlider(col4, "B", 156)
+createColorSlider(col4, "R", 124)
+createColorSlider(col4, "G", 148)
+createColorSlider(col4, "B", 172)
 
--- FOVスライダーの追加
 local function createFovSlider(parentCol, posY)
     local SliderFrame = Instance.new("Frame", parentCol)
     SliderFrame.Size = UDim2.new(1, 0, 0, 24)
@@ -432,14 +435,14 @@ local function createFovSlider(parentCol, posY)
     updateSlider(_G.Settings.FOV)
 end
 
-createFovSlider(col4, 188)
+createFovSlider(col4, 200)
 
 MenuToggle.MouseButton1Click:Connect(function()
     MainPanel.Visible = not MainPanel.Visible
 end)
 
 -- ==========================================
--- 機能ロジック（ESP・FullBright・FOV・TextChat等）
+-- 機能ロジック
 -- ==========================================
 local NameTag = Instance.new("BillboardGui")
 NameTag.Name = "nilNameTag"
@@ -457,6 +460,19 @@ Tag.TextSize = 13
 Tag.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
 Tag.TextStrokeTransparency = 0.3
 Tag.Font = Enum.Font.RobotoMono
+
+local GenBillboard = Instance.new("BillboardGui")
+GenBillboard.Name = "GenImageESP"
+GenBillboard.Enabled = false
+GenBillboard.Size = UDim2.new(0, 30, 0, 30)
+GenBillboard.AlwaysOnTop = true
+GenBillboard.StudsOffset = Vector3.new(0, 2, 0)
+
+local GenImage = Instance.new("ImageLabel", GenBillboard)
+GenImage.Name = "Icon"
+GenImage.Size = UDim2.new(1, 0, 1, 0)
+GenImage.BackgroundTransparency = 1
+GenImage.Image = "rbxassetid://9405931578"
 
 local ESPCache = {}
 local function getESP(v)
@@ -528,8 +544,6 @@ Players.PlayerAdded:Connect(function(v) pcall(LoadPlayer, v) end)
 Players.PlayerRemoving:Connect(function(v) pcall(UnloadPlayer, v) end)
 plr.NameDisplayDistance = 0
 
--- 毎フレーム処理（FOV・FullBright・TextChat切替）
-RunService = game:GetService("RunService")
 RunService.RenderStepped:Connect(function()
     pcall(function()
         if camera then
@@ -544,10 +558,22 @@ RunService.RenderStepped:Connect(function()
             TextChatService.ChatWindowConfiguration.Enabled = _G.Settings.TextChatVisible
             TextChatService.ChatInputBarConfiguration.Enabled = _G.Settings.TextChatVisible
         end)
+
+        if plr.Character then
+            local humanoid = plr.Character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                if _G.Settings.JumpEnabled then
+                    humanoid.JumpPower = 50
+                    humanoid.JumpHeight = 7.2
+                else
+                    humanoid.JumpPower = 0
+                    humanoid.JumpHeight = 0
+                end
+            end
+        end
     end)
 end)
 
--- FullBright
 task.spawn(function()
     while task.wait(0.5) do
         pcall(function()
@@ -568,7 +594,6 @@ task.spawn(function()
     end
 end)
 
--- Killers ハイライト
 task.spawn(function()
     local killerFolderContainer = workspace:WaitForChild("Players", 5) and workspace.Players:WaitForChild("Killers", 5)
     local function setupKillerModel(model)
@@ -618,12 +643,11 @@ task.spawn(function()
     end
 end)
 
--- 状態保存用テーブル
 local originalTransparencies = {}
 
--- Survivor, Tool, & Workspace.Map.Ingame 内の各種オブジェクトハイライト処理
+-- Gear, Tool, Generator画像ESP、影オブジェクトの処理（柔軟なパス検索に対応）
 task.spawn(function()
-    while task.wait(0.5) do
+    while task.wait(0.2) do
         pcall(function()
             local map = workspace:FindFirstChild("Map")
             if not map then return end
@@ -632,6 +656,53 @@ task.spawn(function()
             
             local innerMap = ingame:FindFirstChild("Map")
             if innerMap then
+                -- 柔軟なジェネレーター検索（マップ配下から Generator -> Instances -> Generator を確実に見つける）
+                for _, desc in ipairs(innerMap:GetDescendants()) do
+                    if desc:IsA("Model") and desc.Name == "Generator" then
+                        -- 親に Instances がある、または祖先のどこかに Instances / Generator の関係があるかチェック
+                        local parent = desc.Parent
+                        if parent and parent.Name == "Instances" then
+                            local shouldShow = _G.Settings.ShowGeneratorHighlight
+                            
+                            -- 進捗チェック (Progress -> BarUI -> Bar の Size.X が 1 の場合を判定)
+                            if shouldShow and _G.Settings.HideCompletedGen then
+                                local progressPart = desc:FindFirstChild("Progress")
+                                if progressPart then
+                                    local barUI = progressPart:FindFirstChild("BarUI")
+                                    if barUI then
+                                        local bar = barUI:FindFirstChild("Bar")
+                                        if bar then
+                                            local sizeX = bar.Size.X
+                                            -- パーツのSizeか、UIのScale/Sizeかによって安全に判定
+                                            if type(sizeX) == "number" and sizeX >= 0.99 then
+                                                shouldShow = false
+                                            elseif typeof(sizeX) == "UDim" and sizeX.Scale >= 0.99 then
+                                                shouldShow = false
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+
+                            local billboard = desc:FindFirstChild("GenImageESP")
+                            if shouldShow then
+                                if not billboard then
+                                    billboard = GenBillboard:Clone()
+                                    billboard.Parent = desc
+                                    billboard.Adornee = desc
+                                end
+                                billboard.Enabled = true
+                                local icon = billboard:FindFirstChild("Icon")
+                                if icon then
+                                    icon.ImageColor3 = _G.Colors.ShowGeneratorHighlight
+                                end
+                            else
+                                if billboard then billboard.Enabled = false end
+                            end
+                        end
+                    end
+                end
+
                 local gearsTest = innerMap:FindFirstChild("GearsTest")
                 if gearsTest then
                     for _, child in ipairs(gearsTest:GetChildren()) do
