@@ -1,5 +1,5 @@
 -- ==========================================
--- Forsaken Hub - LocalScript (Robust Generator ESP)
+-- Forsaken Hub - LocalScript (Lightweight Optimized)
 -- ==========================================
 
 local HttpService = game:GetService("HttpService")
@@ -202,6 +202,9 @@ local col2 = createColumn(185, 175, "Killers Esp")
 local col3 = createColumn(370, 175, "Survivor Esp")
 local col4 = createColumn(555, 200, "World & Colors")
 
+-- グローバル更新管理用リスト
+local updateCallbacks = {}
+
 local function createButton(parentCol, text, settingKey, posY, hasColor)
     local btnWidth = hasColor and 130 or 175
     local btn = Instance.new("TextButton", parentCol)
@@ -272,23 +275,22 @@ local function createButton(parentCol, text, settingKey, posY, hasColor)
         end
     end
     
+    table.insert(updateCallbacks, updateDisplay)
+
     btn.MouseButton1Click:Connect(function()
         _G.Settings[settingKey] = not _G.Settings[settingKey]
         currentConfigTarget = settingKey
-        updateDisplay()
+        for _, cb in ipairs(updateCallbacks) do pcall(cb) end
         saveConfig()
     end)
 
     if hasColor then
         ColorIndicator.MouseButton1Click:Connect(function()
             currentConfigTarget = settingKey
-            updateDisplay()
+            for _, cb in ipairs(updateCallbacks) do pcall(cb) end
         end)
     end
     
-    task.spawn(function()
-        while task.wait(0.2) do updateDisplay() end
-    end)
     updateDisplay()
 end
 
@@ -344,6 +346,8 @@ local function createColorSlider(parentCol, colorChannel, posY)
         end
     end
 
+    table.insert(updateCallbacks, updateColorDisplay)
+
     btn.MouseButton1Click:Connect(function()
         if not _G.Colors[currentConfigTarget] then return end
         local activeColor = _G.Colors[currentConfigTarget]
@@ -352,11 +356,10 @@ local function createColorSlider(parentCol, colorChannel, posY)
         elseif colorChannel == "G" then g = (g + 25) > 255 and 0 or (g + 25)
         elseif colorChannel == "B" then b = (b + 25) > 255 and 0 or (b + 25) end
         _G.Colors[currentConfigTarget] = Color3.fromRGB(r, g, b)
-        updateColorDisplay()
+        for _, cb in ipairs(updateCallbacks) do pcall(cb) end
         saveConfig()
     end)
 
-    task.spawn(function() while task.wait(0.1) do updateColorDisplay() end end)
     updateColorDisplay()
 end
 
@@ -399,7 +402,6 @@ local function createFovSlider(parentCol, posY)
     local function updateSlider(value)
         value = math.clamp(value, 70, 120)
         _G.Settings.FOV = math.floor(value)
-        
         Label.Text = "FOV: " .. tostring(_G.Settings.FOV)
         local percent = (_G.Settings.FOV - 70) / (120 - 70)
         FillBar.Size = UDim2.new(percent, 0, 1, 0)
@@ -442,7 +444,7 @@ MenuToggle.MouseButton1Click:Connect(function()
 end)
 
 -- ==========================================
--- 機能ロジック
+-- 機能ロジック（軽量化版）
 -- ==========================================
 local NameTag = Instance.new("BillboardGui")
 NameTag.Name = "nilNameTag"
@@ -544,6 +546,7 @@ Players.PlayerAdded:Connect(function(v) pcall(LoadPlayer, v) end)
 Players.PlayerRemoving:Connect(function(v) pcall(UnloadPlayer, v) end)
 plr.NameDisplayDistance = 0
 
+-- プレイヤー関連の最小限の毎フレーム処理
 RunService.RenderStepped:Connect(function()
     pcall(function()
         if camera then
@@ -574,8 +577,9 @@ RunService.RenderStepped:Connect(function()
     end)
 end)
 
+-- FullBright
 task.spawn(function()
-    while task.wait(0.5) do
+    while task.wait(1) do
         pcall(function()
             if _G.Settings.FullBright then
                 Lighting.Brightness = 2
@@ -594,6 +598,7 @@ task.spawn(function()
     end
 end)
 
+-- Killers ハイライト管理
 task.spawn(function()
     local killerFolderContainer = workspace:WaitForChild("Players", 5) and workspace.Players:WaitForChild("Killers", 5)
     local function setupKillerModel(model)
@@ -617,22 +622,18 @@ task.spawn(function()
         killerFolderContainer.ChildAdded:Connect(function(child) task.wait(0.1) setupKillerModel(child) end)
     end
 
-    while task.wait(0.2) do
+    while task.wait(1) do
         if killerFolderContainer then
             for _, child in ipairs(killerFolderContainer:GetChildren()) do
                 if child:IsA("Model") then
-                    local usernameAttr = child:GetAttribute("Username")
-                    if usernameAttr and usernameAttr == plr.Name then
-                        if child:FindFirstChild("KillerESP_Highlight") then child.KillerESP_Highlight:Destroy() end
+                    local usernameAttr = child:GetAttribute("Attribute")
+                    local hl = child:FindFirstChild("KillerESP_Highlight")
+                    if hl then
+                        hl.Enabled = _G.Settings.ShowKillerHighlight
+                        hl.FillColor = _G.Colors.ShowKillerHighlight
+                        hl.OutlineColor = _G.Colors.ShowKillerHighlight
                     else
-                        local hl = child:FindFirstChild("KillerESP_Highlight")
-                        if hl then
-                            hl.Enabled = _G.Settings.ShowKillerHighlight
-                            hl.FillColor = _G.Colors.ShowKillerHighlight
-                            hl.OutlineColor = _G.Colors.ShowKillerHighlight
-                        else
-                            setupKillerModel(child)
-                        end
+                        setupKillerModel(child)
                     end
                 end
             end
@@ -643,167 +644,86 @@ task.spawn(function()
     end
 end)
 
-local originalTransparencies = {}
+-- ジェネレーター監視（イベント駆動式で完全最適化）
+local function setupGeneratorWatcher(innerGen)
+    if innerGen:FindFirstChild("GenWatched") then return end
+    local watchedTag = Instance.new("BoolValue")
+    watchedTag.Name = "GenWatched"
+    watchedTag.Parent = innerGen
 
--- Gear, Tool, Generator画像ESP、影オブジェクトの処理（柔軟なパス検索に対応）
-task.spawn(function()
-    while task.wait(0.2) do
+    local function updateGenESP()
         pcall(function()
-            local map = workspace:FindFirstChild("Map")
-            if not map then return end
-            local ingame = map:FindFirstChild("Ingame")
-            if not ingame then return end
+            local shouldShow = _G.Settings.ShowGeneratorHighlight
             
-            local innerMap = ingame:FindFirstChild("Map")
-            if innerMap then
-                -- 柔軟なジェネレーター検索（マップ配下から Generator -> Instances -> Generator を確実に見つける）
-                for _, desc in ipairs(innerMap:GetDescendants()) do
-                    if desc:IsA("Model") and desc.Name == "Generator" then
-                        -- 親に Instances がある、または祖先のどこかに Instances / Generator の関係があるかチェック
-                        local parent = desc.Parent
-                        if parent and parent.Name == "Instances" then
-                            local shouldShow = _G.Settings.ShowGeneratorHighlight
-                            
-                            -- 進捗チェック (Progress -> BarUI -> Bar の Size.X が 1 の場合を判定)
-                            if shouldShow and _G.Settings.HideCompletedGen then
-                                local progressPart = desc:FindFirstChild("Progress")
-                                if progressPart then
-                                    local barUI = progressPart:FindFirstChild("BarUI")
-                                    if barUI then
-                                        local bar = barUI:FindFirstChild("Bar")
-                                        if bar then
-                                            local sizeX = bar.Size.X
-                                            -- パーツのSizeか、UIのScale/Sizeかによって安全に判定
-                                            if type(sizeX) == "number" and sizeX >= 0.99 then
-                                                shouldShow = false
-                                            elseif typeof(sizeX) == "UDim" and sizeX.Scale >= 0.99 then
-                                                shouldShow = false
-                                            end
-                                        end
-                                    end
-                                end
-                            end
-
-                            local billboard = desc:FindFirstChild("GenImageESP")
-                            if shouldShow then
-                                if not billboard then
-                                    billboard = GenBillboard:Clone()
-                                    billboard.Parent = desc
-                                    billboard.Adornee = desc
-                                end
-                                billboard.Enabled = true
-                                local icon = billboard:FindFirstChild("Icon")
-                                if icon then
-                                    icon.ImageColor3 = _G.Colors.ShowGeneratorHighlight
-                                end
-                            else
-                                if billboard then billboard.Enabled = false end
-                            end
-                        end
-                    end
-                end
-
-                local gearsTest = innerMap:FindFirstChild("GearsTest")
-                if gearsTest then
-                    for _, child in ipairs(gearsTest:GetChildren()) do
-                        if child:IsA("Model") and child.Name == "Gear" then
-                            local details = child:FindFirstChild("Details")
-                            if details and details:IsA("Model") then
-                                local defaultPart = details:FindFirstChild("default")
-                                if defaultPart and defaultPart:IsA("BasePart") then
-                                    local hl = defaultPart:FindFirstChild("Gear_Highlight")
-                                    if _G.Settings.ShowGearHighlight then
-                                        if not hl then
-                                            hl = Instance.new("Highlight")
-                                            hl.Name = "Gear_Highlight"
-                                            hl.Adornee = defaultPart
-                                            hl.FillTransparency = 0.4
-                                            hl.OutlineTransparency = 0
-                                            hl.Parent = defaultPart
-                                        end
-                                        hl.Enabled = true
-                                        hl.FillColor = _G.Colors.ShowGearHighlight
-                                        hl.OutlineColor = _G.Colors.ShowGearHighlight
-                                    else
-                                        if hl then hl.Enabled = false end
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-
-                for _, obj in ipairs(innerMap:GetChildren()) do
-                    if obj:IsA("Tool") then
-                        for _, desc in ipairs(obj:GetDescendants()) do
-                            if desc:IsA("MeshPart") then
-                                local hl = desc:FindFirstChild("Tool_Highlight")
-                                if _G.Settings.ShowToolHighlight then
-                                    if not hl then
-                                        hl = Instance.new("Highlight")
-                                        hl.Name = "Tool_Highlight"
-                                        hl.Adornee = desc
-                                        hl.FillTransparency = 0.4
-                                        hl.OutlineTransparency = 0
-                                        hl.Parent = desc
-                                    end
-                                    hl.Enabled = true
-                                    hl.FillColor = _G.Colors.ShowToolHighlight
-                                    hl.OutlineColor = _G.Colors.ShowToolHighlight
-                                else
-                                    if hl then hl.Enabled = false end
-                                end
+            if shouldShow and _G.Settings.HideCompletedGen then
+                local progressPart = innerGen:FindFirstChild("Progress")
+                if progressPart then
+                    local barUI = progressPart:FindFirstChild("BarUI")
+                    if barUI then
+                        local bar = barUI:FindFirstChild("Bar")
+                        if bar then
+                            local sizeX = bar.Size.X
+                            if type(sizeX) == "number" and sizeX >= 0.99 then
+                                shouldShow = false
+                            elseif typeof(sizeX) == "UDim" and sizeX.Scale >= 0.99 then
+                                shouldShow = false
                             end
                         end
                     end
                 end
             end
 
-            for _, child in ipairs(ingame:GetChildren()) do
-                if child.Name ~= "Map" then
-                    if string.sub(child.Name, -7) == "Shadows" then
-                        for _, part in ipairs(child:GetDescendants()) do
-                            if part:IsA("BasePart") and part.Name == "Shadow" then
-                                if not originalTransparencies[part] then
-                                    originalTransparencies[part] = part.Transparency
-                                end
+            local billboard = innerGen:FindFirstChild("GenImageESP")
+            if shouldShow then
+                if not billboard then
+                    billboard = GenBillboard:Clone()
+                    billboard.Parent = innerGen
+                    billboard.Adornee = innerGen
+                end
+                billboard.Enabled = true
+                local icon = billboard:FindFirstChild("Icon")
+                if icon then
+                    icon.ImageColor3 = _G.Colors.ShowGeneratorHighlight
+                end
+            else
+                if billboard then billboard.Enabled = false end
+            end
+        end)
+    end
 
-                                local hl = part:FindFirstChild("KillerObject_Highlight")
-                                if _G.Settings.ShowKillerObjectHighlight then
-                                    part.Transparency = 0
-                                    if not hl then
-                                        hl = Instance.new("Highlight")
-                                        hl.Name = "KillerObject_Highlight"
-                                        hl.Adornee = part
-                                        hl.FillTransparency = 0.4
-                                        hl.OutlineTransparency = 0
-                                        hl.Parent = part
-                                    end
-                                    hl.Enabled = true
-                                    hl.FillColor = _G.Colors.ShowKillerObjectHighlight
-                                    hl.OutlineColor = _G.Colors.ShowKillerObjectHighlight
-                                else
-                                    if hl then hl.Enabled = false end
-                                    part.Transparency = originalTransparencies[part] or 1
-                                end
-                            end
-                        end
-                    elseif child:IsA("Model") then
-                        local hl = child:FindFirstChild("KillerObject_Highlight")
-                        if _G.Settings.ShowKillerObjectHighlight then
-                            if not hl then
-                                hl = Instance.new("Highlight")
-                                hl.Name = "KillerObject_Highlight"
-                                hl.Adornee = child
-                                hl.FillTransparency = 0.4
-                                hl.OutlineTransparency = 0
-                                hl.Parent = child
-                            end
-                            hl.Enabled = true
-                            hl.FillColor = _G.Colors.ShowKillerObjectHighlight
-                            hl.OutlineColor = _G.Colors.ShowKillerObjectHighlight
-                        else
-                            if hl then hl.Enabled = false end
+    updateGenESP()
+
+    -- トグル変更時やサイズ変更時のみ反応
+    local progressPart = innerGen:FindFirstChild("Progress")
+    if progressPart then
+        local barUI = progressPart:FindFirstChild("BarUI")
+        if barUI then
+            local bar = barUI:FindFirstChild("Bar")
+            if bar then
+                bar.Changed:Connect(function(property)
+                    if property == "Size" then
+                        updateGenESP()
+                    end
+                end)
+            end
+        end
+    end
+end
+
+-- ジェネレーター探索を低頻度（2秒）にして負荷を激減
+task.spawn(function()
+    while task.wait(2) do
+        pcall(function()
+            local map = workspace:FindFirstChild("Map")
+            if not map then return end
+            local ingame = map:FindFirstChild("Ingame")
+            if not ingame then return end
+            local innerMap = ingame:FindFirstChild("Map")
+            if innerMap then
+                for _, obj in ipairs(innerMap:GetDescendants()) do
+                    if obj:IsA("Model") and obj.Name == "Generator" then
+                        if obj.Parent and obj.Parent.Name == "Instances" then
+                            setupGeneratorWatcher(obj)
                         end
                     end
                 end
@@ -812,9 +732,9 @@ task.spawn(function()
     end
 end)
 
--- プレイヤーESPループ
+-- プレイヤーESP描画ループ（軽量化）
 task.spawn(function()
-    while task.wait() do
+    while task.wait(0.1) do
         for _, v in ipairs(Players:GetPlayers()) do
             pcall(function()
                 local esp = getESP(v)
